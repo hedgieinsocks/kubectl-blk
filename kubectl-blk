@@ -70,7 +70,7 @@ parse_input() {
   shift $((OPTIND-1))
   [[ -z "$1" ]] || err "invalid input"
   [[ -n "${command}" ]] || err "no kubectl command provided"
-  export COMMAND="${command[*]}"
+  export KBLK_COMMAND="${command[*]}"
 }
 
 ### find the contexts that match the regex
@@ -91,7 +91,7 @@ confirm_launch() {
   if [[ "${KBLK_FORCE}" != "true" ]]; then
     echo "⦿ matched contexts: "
     echo "${TARGET_CONTEXTS}" | sort
-    echo -n "⦿ type 'y' to run $(tput setaf "${KBLK_SEP_COLOR}")'kubectl ${COMMAND}'$(tput sgr0) command: "
+    echo -n "⦿ type 'y' to run $(tput setaf "${KBLK_SEP_COLOR}")'kubectl ${KBLK_COMMAND}'$(tput sgr0) command: "
     read -r confirm
     if [[ ! "${confirm}" =~ ^(y|Y)$ ]]; then
       err "confirmation failed"
@@ -107,7 +107,7 @@ exec_kubectl_command() {
     output=$(tput setaf "${KBLK_SEP_COLOR}"
              printf "%b\n" "${KBLK_SEP_GAP}${KBLK_SEP_PAD}[ $(kubectl config current-context) ]${KBLK_SEP_PAD}"
              tput sgr0
-             eval kubectl "${COMMAND}" 2>&1)
+             eval kubectl "${KBLK_COMMAND}" 2>&1)
     flock 99
     printf "%s\n" "${output}"
   } 99>"${KBLK_LOCKFILE}"
