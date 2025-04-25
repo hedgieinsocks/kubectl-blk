@@ -1,10 +1,11 @@
 # kubectl-blk
 
-`kubectl-blk` is a simple `kubectl` plugin that helps run kubectl commands against multiple single-cluster kubeconfigs.
+`kubectl-blk` is a simple `kubectl` plugin that helps run `kubectl` (or `flux`) commands against multiple single-cluster kubeconfigs.
 
 ## Requirements
 
 * `flock` - https://man7.org/linux/man-pages/man1/flock.1.html
+* `grep` - GNU version that supports `--perl-regexp` flag
 
 ## Installation
 
@@ -17,6 +18,7 @@ You can export the following variables to tweak the plugin's behaviour.
 
 | VARIABLE         | DEFAULT           | DETAILS                            |
 |------------------|-------------------|------------------------------------|
+| `KBLK_BIN`       | `kubectl`         | binary to run commands with    |
 | `KBLK_DIR`       | `~/.kube/configs` | directory with your kubeconfigs    |
 | `KBLK_REGEX`     | `.*`              | default regex for contexts         |
 | `KBLK_PROC`      | `0`               | `xargs` processes                  |
@@ -31,16 +33,17 @@ You can export the following variables to tweak the plugin's behaviour.
 kubectl blk helps run kubectl commands against multiple single-context kubeconfigs
 
 Usage:
-  kubectl blk [-r '<regex>'] [-p <int>] [-f] [-h] -- <command>
+  kubectl blk [-r '<regex>'] [-p <int>] [-b <binary>] [-f] [-h] -- <command>
 
 Flags:
   -r <regex>    perl regex to match the contexts (default: .*)
   -p <int>      number or xargs processes (default: 0)
-  -f            do not ask confirmation
-  -h            show this message
+  -b <binary>   binary to run commands with (default: kubectl)
+  -f            do not ask for confirmation
+  -h            show this message and exit
 ```
 
-## Example
+## Examples
 
 ```sh
 ❯ k blk -r 'prod.*eu' -- version
@@ -67,11 +70,17 @@ Client Version: v1.30.2
 Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
 Server Version: v1.25.14+rke2r1
 WARNING: version difference between client (1.30) and server (1.25) exceeds the supported minor version skew of +/-1
+
+❯ k blk -r 'prod.*eu' -b flux -f -- get hr
+==========[ prod-cluster01-eu ]==========
+NAME               REVISION        SUSPENDED       READY   MESSAGE
+my-operator        0.9.1           False           True    Release reconciliation succeeded
+
+==========[ prod-cluster02-eu ]==========
+NAME               REVISION        SUSPENDED       READY   MESSAGE
+my-operator        0.9.1           False           True    Release reconciliation succeeded
+
+==========[ prod-cluster03-eu ]==========
+NAME               REVISION        SUSPENDED       READY   MESSAGE
+my-operator        0.9.1           False           True    Release reconciliation succeeded
 ```
-
-## Why
-
-A man had a bunch of kubeconfigs that all used `default` as the name for the cluster, user and context.
-Because of that a man could not just merge those kubeconfigs and use [kubectl-mc](https://github.com/jonnylangefeld/kubectl-mc) plugin.
-The proper way would be to fix the kubeconfigs by giving unique names to the clusters, users and contexts.
-But a man had to satisfy his needs to shell script.
