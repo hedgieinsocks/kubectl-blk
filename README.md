@@ -73,6 +73,11 @@ Server Version: v1.25.14+rke2r1
 WARNING: version difference between client (1.30) and server (1.25) exceeds the supported minor version skew of +/-1
 
 ❯ k blk -r 'prod.*eu' -b flux -f -- get hr
+⦿ matched contexts:
+prod-cluster01-eu
+prod-cluster02-eu
+prod-cluster03-eu
+
 ==========[ prod-cluster01-eu ]==========
 NAME               REVISION        SUSPENDED       READY   MESSAGE
 my-operator        0.9.1           False           True    Release reconciliation succeeded
