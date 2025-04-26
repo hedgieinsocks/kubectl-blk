@@ -3,10 +3,13 @@
 [[ -n "${DEBUG}" ]] && set -x
 set -eo pipefail
 
+KBLK_VERSION="v0.0.3-dev"
+
 KBLK_DIR="${KBLK_DIR:-$HOME/.kube/configs}"
+KBLK_REGEX_TYPE="${KBLK_REGEX_TYPE:-extended}"  # basic | extended | perl
 KBLK_REGEX="${KBLK_REGEX:-.*}"
 KBLK_PROC="${KBLK_PROC:-0}"
-KBLK_FORCE="${KBLK_FORCE:-false}"
+KBLK_FORCE="${KBLK_FORCE:-0}"
 
 set -a
 KBLK_BIN="${KBLK_BIN:-kubectl}"
@@ -22,18 +25,26 @@ trap 'rm -f "${KBLK_LOCKFILE}"' 0
 # arg: none
 show_help() {
   cat << EOF
-kubectl blk helps run kubectl commands against multiple single-context kubeconfigs
+kubectl blk helps run kubectl or flux commands against multiple single-context kubeconfigs
 
 Usage:
-  kubectl blk [-r '<regex>'] [-p <int>] [-b <binary>] [-f] [-h] -- <command>
+  kubectl blk [-r '<regex>'] [-p <int>] [-b <binary>] [-f] -- <command>
 
 Flags:
   -r <regex>    perl regex to match the contexts (default: ${KBLK_REGEX})
   -p <int>      number or xargs processes (default: ${KBLK_PROC})
   -b <binary>   binary to run commands with (default: ${KBLK_BIN})
   -f            do not ask for confirmation
+  -v            show plugin version and exit
   -h            show this message and exit
 EOF
+  exit
+}
+
+### show plugin version and exit
+# arg: none
+show_version() {
+  echo "kubectl blk version ${KBLK_VERSION}"
   exit
 }
 
@@ -46,8 +57,12 @@ err() {
 
 ### ensure that dependencies are installed
 # arg: none
-check_requirements() {
-  hash flock || err "some dependencies are missing"
+check_dependencies() {
+  local cmd
+
+  for cmd in "${KBLK_BIN}" flock; do
+    command -v "${cmd}" 1>/dev/null || err "command not found: ${cmd}"
+  done
 }
 
 ### parse and validate the input
@@ -55,24 +70,29 @@ check_requirements() {
 # set: KBLK_COMMAND
 parse_input() {
   local command options
+
   (( "$#" )) || show_help
   command=($(printf "%s\n" "$@" | sed '0,/^--$/d'))
   options=($(printf "%s\n" "$@" | sed '/^--$/,$d'))
   set -- "${options[@]}"
-  while getopts ":r:p:b:fh" opt; do
+
+  while getopts ":r:p:b:fhv" opt; do
     case ${opt} in
       r) KBLK_REGEX="${OPTARG}"                       ;;
       p) KBLK_PROC="${OPTARG}"                        ;;
       b) KBLK_BIN="${OPTARG}"                         ;;
-      f) KBLK_FORCE="true"                            ;;
+      f) KBLK_FORCE=1                                 ;;
       h) show_help                                    ;;
+      v) show_version                                 ;;
       :) err "option -${OPTARG} requires an argument" ;;
       ?) err "invalid option: -${OPTARG}"             ;;
     esac
   done
+
   shift $((OPTIND-1))
   [[ -z "$1" ]] || err "invalid input"
-  [[ -n "${command}" ]] || err "no kubectl command provided"
+  [[ -n "${command}" ]] || err "no command provided"
+
   export KBLK_COMMAND="${command[*]}"
 }
 
@@ -83,7 +103,7 @@ match_contexts() {
   mkdir -p "${KBLK_DIR}"
   KUBECONFIGS=$(find "${KBLK_DIR}" \( -type f -o -type l \) -exec awk '/^current-context:/ {print FILENAME, $2}' {} +)
   [[ -n "${KUBECONFIGS}" ]] || err "no kubeconfigs found in ${KBLK_DIR}"
-  TARGET_CONTEXTS=$(awk '{print $2}' <<< "${KUBECONFIGS}" | grep --perl-regexp "${KBLK_REGEX}" || true)
+  TARGET_CONTEXTS=$(awk '{print $2}' <<< "${KUBECONFIGS}" | grep "--${KBLK_REGEX_TYPE}-regexp" "${KBLK_REGEX}" || true)
   [[ -n "${TARGET_CONTEXTS}" ]] || err "no context matched the provided regex: ${KBLK_REGEX}"
 }
 
@@ -91,9 +111,11 @@ match_contexts() {
 # arg: none
 confirm_launch() {
   local confirm
-  if [[ "${KBLK_FORCE}" != "true" ]]; then
-    echo "⦿ matched contexts: "
-    echo "${TARGET_CONTEXTS}" | sort
+
+  echo "⦿ matched contexts: "
+  echo "${TARGET_CONTEXTS}" | sort
+
+  if ! ((KBLK_FORCE)); then
     echo -n "⦿ type 'y' to run $(tput setaf "${KBLK_SEP_COLOR}")'${KBLK_BIN} ${KBLK_COMMAND}'$(tput sgr0) command: "
     read -r confirm
     if [[ ! "${confirm}" =~ ^(y|Y)$ ]]; then
@@ -102,10 +124,11 @@ confirm_launch() {
   fi
 }
 
-### kubectl command wrapper with atomic output
+### command wrapper with atomic output
 # arg: none
-exec_kubectl_command() {
+exec_kblk_command() {
   local output
+
   {
     output=$(tput setaf "${KBLK_SEP_COLOR}"
              printf "%b\n" "${KBLK_SEP_GAP}${KBLK_SEP_PAD}[ $(kubectl config current-context) ]${KBLK_SEP_PAD}"
@@ -114,16 +137,16 @@ exec_kubectl_command() {
     flock 99
     printf "%s\n" "${output}"
   } 99>"${KBLK_LOCKFILE}"
-}; export -f exec_kubectl_command
+}; export -f exec_kblk_command
 
 main() {
-  check_requirements
   parse_input "$@"
+  check_dependencies
   match_contexts
   confirm_launch
 
   grep --file <(echo "${TARGET_CONTEXTS}") <<< "${KUBECONFIGS}" | awk '{print $1}' \
-    | xargs --no-run-if-empty --replace={} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c 'exec_kubectl_command'
+    | xargs --no-run-if-empty --replace={} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
 }
 
 main "$@"

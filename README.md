@@ -4,8 +4,7 @@
 
 ## Requirements
 
-* `flock` - https://man7.org/linux/man-pages/man1/flock.1.html
-* `grep` - GNU version that supports `--perl-regexp` flag
+The plugin relies on `flock` command from `util-linux`. So `darwin` users will need to install https://github.com/discoteq/flock
 
 ## Installation
 
@@ -16,30 +15,32 @@
 
 You can export the following variables to tweak the plugin's behaviour.
 
-| VARIABLE         | DEFAULT           | DETAILS                            |
-|------------------|-------------------|------------------------------------|
-| `KBLK_BIN`       | `kubectl`         | binary to run commands with    |
-| `KBLK_DIR`       | `~/.kube/configs` | directory with your kubeconfigs    |
-| `KBLK_REGEX`     | `.*`              | default regex for contexts         |
-| `KBLK_PROC`      | `0`               | `xargs` processes                  |
-| `KBLK_FORCE`     | `false`           | do not ask for confirmation        |
-| `KBLK_SEP_COLOR` | `4`               | `tput` separator color             |
-| `KBLK_SEP_PAD`   | `==========`      | separator padding string           |
-| `KBLK_SEP_GAP`   | `\n`              | this is printed before a separator |
+| VARIABLE          | DEFAULT           | DETAILS                                          |
+|-------------------|-------------------|--------------------------------------------------|
+| `KBLK_BIN`        | `kubectl`         | binary to run commands with                      |
+| `KBLK_DIR`        | `~/.kube/configs` | directory with your kubeconfigs                  |
+| `KBLK_REGEX_TYPE` | `extended`        | `grep` regex type: `basic`, `extended` or `perl` |
+| `KBLK_REGEX`      | `.*`              | default regex for contexts                       |
+| `KBLK_PROC`       | `0`               | `xargs` processes                                |
+| `KBLK_FORCE`      | `0`               | do not ask for confirmation                      |
+| `KBLK_SEP_COLOR`  | `4`               | `tput` separator color                           |
+| `KBLK_SEP_PAD`    | `==========`      | separator padding string                         |
+| `KBLK_SEP_GAP`    | `\n`              | this is printed before a separator               |
 
 ## Usage
 
 ```
-kubectl blk helps run kubectl commands against multiple single-context kubeconfigs
+kubectl blk helps run kubectl or flux commands against multiple single-context kubeconfigs
 
 Usage:
-  kubectl blk [-r '<regex>'] [-p <int>] [-b <binary>] [-f] [-h] -- <command>
+  kubectl blk [-r '<regex>'] [-p <int>] [-b <binary>] [-f] -- <command>
 
 Flags:
   -r <regex>    perl regex to match the contexts (default: .*)
   -p <int>      number or xargs processes (default: 0)
   -b <binary>   binary to run commands with (default: kubectl)
   -f            do not ask for confirmation
+  -v            show plugin version and exit
   -h            show this message and exit
 ```
 
