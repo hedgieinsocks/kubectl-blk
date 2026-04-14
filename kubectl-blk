@@ -145,7 +145,7 @@ main() {
   match_contexts
   confirm_launch
 
-  grep --file <(echo "${TARGET_CONTEXTS}") <<< "${KUBECONFIGS}" | awk '{print $1}' \
+  grep --file <(sed 's/^/ /;s/$/$/;' <<< "${TARGET_CONTEXTS}") <<< "${KUBECONFIGS}" | awk '{print $1}' \
     | xargs --no-run-if-empty --replace={} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
 }
 
