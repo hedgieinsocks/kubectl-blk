@@ -3,7 +3,7 @@
 [[ -n "${DEBUG}" ]] && set -x
 set -eo pipefail
 
-KBLK_VERSION="v0.0.3-dev"
+KBLK_VERSION="v0.0.3"
 
 KBLK_DIR="${KBLK_DIR:-$HOME/.kube/configs}"
 KBLK_REGEX_TYPE="${KBLK_REGEX_TYPE:-extended}"  # basic | extended | perl
