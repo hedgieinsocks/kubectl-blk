@@ -69,11 +69,20 @@ check_dependencies() {
 # arg: $@ - arguments
 # set: KBLK_COMMAND
 parse_input() {
-  local command options
+  local command=() options=() arg found=0
 
   (( "$#" )) || show_help
-  command=($(printf "%s\n" "$@" | sed '0,/^--$/d'))
-  options=($(printf "%s\n" "$@" | sed '/^--$/,$d'))
+  for arg in "$@"; do
+    if (( !found )) && [[ "${arg}" == "--" ]]; then
+      found=1
+      continue
+    fi
+    if (( found )); then
+      command+=("${arg}")
+    else
+      options+=("${arg}")
+    fi
+  done
   set -- "${options[@]}"
 
   while getopts ":r:p:b:fhv" opt; do
@@ -146,7 +155,7 @@ main() {
   confirm_launch
 
   grep --file <(sed 's/^/ /;s/$/$/;' <<< "${TARGET_CONTEXTS}") <<< "${KUBECONFIGS}" | awk '{print $1}' \
-    | xargs --no-run-if-empty --replace={} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
+    | xargs --no-run-if-empty -I {} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
 }
 
 main "$@"
