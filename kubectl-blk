@@ -3,7 +3,7 @@
 [[ -n "${DEBUG}" ]] && set -x
 set -eo pipefail
 
-KBLK_VERSION="v0.0.3"
+KBLK_VERSION="v0.0.4"
 
 KBLK_DIR="${KBLK_DIR:-$HOME/.kube/configs}"
 KBLK_REGEX_TYPE="${KBLK_REGEX_TYPE:-extended}"  # basic | extended | perl
@@ -69,21 +69,9 @@ check_dependencies() {
 # arg: $@ - arguments
 # set: KBLK_COMMAND
 parse_input() {
-  local command=() options=() arg found=0
+  local args=("$@")
 
   (( "$#" )) || show_help
-  for arg in "$@"; do
-    if (( !found )) && [[ "${arg}" == "--" ]]; then
-      found=1
-      continue
-    fi
-    if (( found )); then
-      command+=("${arg}")
-    else
-      options+=("${arg}")
-    fi
-  done
-  set -- "${options[@]}"
 
   while getopts ":r:p:b:fhv" opt; do
     case ${opt} in
@@ -97,12 +85,11 @@ parse_input() {
       ?) err "invalid option: -${OPTARG}"             ;;
     esac
   done
+  [[ "${args[OPTIND-2]}" == "--" ]] || err "invalid input"
 
   shift $((OPTIND-1))
-  [[ -z "$1" ]] || err "invalid input"
-  [[ -n "${command}" ]] || err "no command provided"
-
-  export KBLK_COMMAND="${command[*]}"
+  export KBLK_COMMAND="$*"
+  [[ -n "${KBLK_COMMAND}" ]] || err "no command provided"
 }
 
 ### find the contexts that match the regex
