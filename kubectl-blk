@@ -3,7 +3,7 @@
 [[ -n "${DEBUG}" ]] && set -x
 set -eo pipefail
 
-KBLK_VERSION="v0.0.3"
+KBLK_VERSION="v0.0.4"
 
 KBLK_DIR="${KBLK_DIR:-$HOME/.kube/configs}"
 KBLK_REGEX_TYPE="${KBLK_REGEX_TYPE:-extended}"  # basic | extended | perl
@@ -69,12 +69,9 @@ check_dependencies() {
 # arg: $@ - arguments
 # set: KBLK_COMMAND
 parse_input() {
-  local command options
+  local args=("$@")
 
   (( "$#" )) || show_help
-  command=($(printf "%s\n" "$@" | sed '0,/^--$/d'))
-  options=($(printf "%s\n" "$@" | sed '/^--$/,$d'))
-  set -- "${options[@]}"
 
   while getopts ":r:p:b:fhv" opt; do
     case ${opt} in
@@ -88,12 +85,11 @@ parse_input() {
       ?) err "invalid option: -${OPTARG}"             ;;
     esac
   done
+  [[ "${args[OPTIND-2]}" == "--" ]] || err "invalid input"
 
   shift $((OPTIND-1))
-  [[ -z "$1" ]] || err "invalid input"
-  [[ -n "${command}" ]] || err "no command provided"
-
-  export KBLK_COMMAND="${command[*]}"
+  export KBLK_COMMAND="$*"
+  [[ -n "${KBLK_COMMAND}" ]] || err "no command provided"
 }
 
 ### find the contexts that match the regex
@@ -146,7 +142,7 @@ main() {
   confirm_launch
 
   grep --file <(sed 's/^/ /;s/$/$/;' <<< "${TARGET_CONTEXTS}") <<< "${KUBECONFIGS}" | awk '{print $1}' \
-    | xargs --no-run-if-empty --replace={} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
+    | xargs --no-run-if-empty -I {} --max-procs="${KBLK_PROC}" env KUBECONFIG={} bash -c "exec_kblk_command"
 }
 
 main "$@"
